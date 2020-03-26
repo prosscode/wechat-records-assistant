@@ -2,35 +2,46 @@
 # author:pross
 
 import time
-import xml.etree.ElementTree as ET
-
+import xmltodict
 from app.dispatch import robot
 
 
 class MsgParser(object):
     """
-       用于解析从微信公众平台传递过来的参数，并进行解析
+       用于解析从公众平台传递过来的参数，并进行解析
     """
 
-    def __init__(self, data):
-        self.data = data
+    def __init__(self, msg):
+        self.data = msg['xml']
+        print(self.data)
 
     def parse(self):
-        self.et = ET.fromstring(self.data)
-        self.user = self.et.find("FromUserName").text
-        self.master = self.et.find("ToUserName").text
-        self.msgtype = self.et.find("MsgType").text
-        # 纯文字信息字段
-        self.content = self.et.find("Content").text if self.et.find("Content") is not None else ""
-        # 语音信息字段
-        self.recognition = self.et.find("Recognition").text if self.et.find("Recognition") is not None else ""
-        self.format = self.et.find("Format").text if self.et.find("Format") is not None else ""
-        self.msgid = self.et.find("MsgId").text if self.et.find("MsgId") is not None else ""
-        # 图片
-        self.picurl = self.et.find("PicUrl").text if self.et.find("PicUrl") is not None else ""
-        self.mediaid = self.et.find("MediaId").text if self.et.find("MediaId") is not None else ""
-        # 事件
-        self.event = self.et.find("Event").text if self.et.find("Event") is not None else ""
+        # 消息id 64位整型
+        self.msg_id = self.data['MsgId']
+        # 发给谁
+        self.master = self.data['ToUserName']
+        # 谁发的
+        self.user = self.data['FromUserName']
+        # 发送时间
+        self.create_time = self.data['CreateTime']
+        # 消息媒体id，可以调用获取临时素材接口拉取数据
+        self.media_id == self.data['MediaId']
+
+        # 消息类型
+        self.type = self.data['MsgType']
+        if self.type == 'text':  # 文本消息
+            self.content = self.data['Content']
+        elif self.type == 'image':  # 图片消息
+            self.pic_url = self.data['PicUrl']
+        elif self.type == 'voice':  # 语音消息
+            self.format = self.data['Format']
+            self.recognition = self.data['Recognition']
+        elif self.type == 'video' or self.type == 'shortvideo':  # 视频消息
+            self.thumb_mediaId == self.data['ThumbMediaId']
+        elif self.type == 'location':  # 地理位置消息
+            self.location == self.data['location']
+        elif self.type == 'link':  # 链接消息
+            self.link == self.data['link']
 
         return self
 
@@ -41,9 +52,10 @@ class MsgDispatcher(object):
     """
 
     def __init__(self, data):
-        print("==============")
-        parser = MsgParser(data).parse()
-        print(parser)
+        print("=======enter dispatcher=======")
+        # 解析xml数据
+        dict_data = xmltodict.parse(data)
+        parser = MsgParser(dict_data).parse()
         self.msg = parser
         self.handler = MsgHandler(parser)
 
@@ -65,10 +77,11 @@ class MsgDispatcher(object):
             self.result = self.handler.linkHandle()
         elif self.msg.msgtype == 'event':
             self.result = self.handler.eventHandle()
+
         return self.result
 
 
-class MsgHandler():
+class MsgHandler(object):
     """
         针对type不同，转交给不同的处理函数。直接处理即可
     """

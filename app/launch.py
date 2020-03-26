@@ -3,9 +3,11 @@
 
 import hashlib
 import time
-
 import xmltodict
 from flask import Flask, make_response, request
+import logging
+
+from app.dispatch.handler import MsgDispatcher
 
 app = Flask(__name__)
 app.debug = True
@@ -40,16 +42,18 @@ def wechat_auth():  # 处理微信请求的处理函数，get方法用于认证�
             return ""
     else:  # 接收消息
         xml_data = request.stream.read()
-        #解析数据
+        print(xml_data)
+        # 转发，解析数据
+        MsgDispatcher(xml_data)
+        # 解析数据
         dict_data = xmltodict.parse(xml_data)
         msg_type = dict_data['xml']['MsgType']
         print(xml_data)
-        print(msg_type)
         # dispatchers = handle.MsgDispatcher(xml_data)
         # data = dispatchers.dispatch()
         if msg_type == 'text':
-            content = dict_data['xml']['Conten']
-            resp_xml ={
+            content = dict_data['xml']['Content']
+            resp_xml = {
                 'xml': {
                     'ToUserName': dict_data['xml']['FromUserName'],
                     'FromUserName': dict_data['xml']['ToUserName'],
@@ -61,16 +65,8 @@ def wechat_auth():  # 处理微信请求的处理函数，get方法用于认证�
         response_msg = xmltodict.unparse(resp_xml)
         print(response_msg)
 
-        # with open("./debug.log", "a") as file:
-        #     file.write(data)
-        #     file.close()
-        # response = make_response(data)
-        # response.content_type = 'application/xml'
-
         return response_msg
 
 
 if __name__ == '__main__':
     app.run(host="127.0.0.1", port=8088)
-
-
